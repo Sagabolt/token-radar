@@ -117,6 +117,18 @@ function writeText(path: string, text: string): void {
   writeFileSync(path, text, 'utf8');
 }
 
+/** Clear the output directory's contents without removing the directory
+ *  itself: in the grading sandbox /output is a docker bind mount, and
+ *  removing a mount point throws EBUSY ("Device or resource busy").
+ *  Removing each child works on a mount point, a normal directory, or
+ *  a missing directory alike. */
+function clearOutputDir(output: string): void {
+  mkdirSync(output, { recursive: true });
+  for (const name of readdirSync(output)) {
+    rmSync(join(output, name), { recursive: true, force: true });
+  }
+}
+
 /** Read a snapshot and check it is the one this model scores. */
 function readSnapshot(path: string): Snapshot {
   let raw: string;
@@ -198,7 +210,7 @@ function main(): void {
   const issue = boardIssue(snapshot, rows);
   if (issue !== null) throw new SnapshotError(`board failed validation: ${issue}`);
 
-  rmSync(args.output, { recursive: true, force: true });
+  clearOutputDir(args.output);
   writeText(join(args.output, 'board.json'), `${JSON.stringify(rows, null, 2)}\n`);
   writeText(join(args.output, 'data.js'), dataScript(radar));
   copyDashboard(args.output);
